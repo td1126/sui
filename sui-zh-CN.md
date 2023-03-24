@@ -175,3 +175,53 @@ Move 程序可以直接对值进行操作或通过引用间接访问它们。引
 
 Finally, abilities in Move control what actions are permissible for values of a given type, such as whether a value of a given type can be copied (duplicated). Abilities constraint struct declarations and generic type parameters. The Move bytecode verifier is responsible for ensuring that sensitive operations like copies can only be performed on types with the corresponding ability.
 最后，Move 中的能力控制对给定类型的值允许的操作，例如是否可以复制（复制）给定类型的值。能力约束结构声明和泛型类型参数。 Move 字节码验证器负责确保像复制这样的敏感操作只能在具有相应能力的类型上执行。
+
+#3.3 Objects and Ownership(对象和所有权)
+
+TxDigest    = 𝐶𝑜𝑚(Tx)
+ObjID       = 𝐶𝑜𝑚(TxDigest × N)
+SingleOwner = Addr ⊎ ObjID
+Shared      = {shared_mut, shared_immut}
+Ownership   = SingleOwner ⊎ Shared
+StructObj   = StructType × Struct
+ObjContents = StructObj ⊎ Package
+Obj         = ObjContents × ObjID × Ownership × Version
+
+Table 3: Objects and Ownership
+
+Each Sui object has a globally unique identifier (ObjID in Table 3)that serves as the persistent identity of the object as it flows between owners and into and out of other objects.
+每个Sui对象都有一个全局唯一的标识符（表3中的ObjID），当对象在所有者之间流动以及进出其他对象时，该标识符充当对象的持久标识。
+This ID is assigned to the object by the transaction that creates it. An object ID is created by applying a collision-resistant hash function to the contents of the current transaction and to a counter recording how many objects the transaction has created.
+此ID由创建对象的交易分配给对象。对象ID是通过将抗冲突哈希函数应用于当前交易的内容和记录交易创建了多少对象的计数器来创建的。
+A transaction (and thus its digest) is guaranteed to be unique due to constraints on the input objects of the transaction, as we will explain subsequently.
+由于对交易的输入对象的约束，交易（以及它的摘要）被保证是唯一的，正如我们随后将解释的那样。
+
+In addition to an ID, each object carries metadata about its ownership. An object is either uniquely owned by an address or another object, shared with write/read permissions, or shared with only read permissions.
+除了ID之外，每个对象还携带有关其所有权的元数据。一个对象要么由一个地址或另一个对象唯一拥有，要么与写/读权限共享，要么仅与读权限共享。
+The ownership of an object determines whether and how a transaction can use it as an input. Broadly, a uniquely owned object can only be used in a transaction initiated by its owner or including its parent object as an input, whereas a shared object can be used by any transaction, but only with the specified mutability permissions.
+对象的所有权决定了交易是否可以将其用作输入以及如何将其用作输入。从广义上讲，唯一拥有的对象只能在其所有者发起的交易中使用，或者包括其父对象作为输入，而共享对象可以由任何交易使用，但只能具有指定的可变权限。
+See Section 4.4 for a full explanation.
+完整解释见第4.4节。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
