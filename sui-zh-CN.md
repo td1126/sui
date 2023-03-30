@@ -531,6 +531,163 @@ Authorities process transactions as specified in Sect. 4.3 for owned objects and
 All authorities observe a consistent sequence of such certificates, and assign the version of shared objects used by each transaction according to this sequence. Then execution can proceed and is guaranteed to be consistent across all authorities. Authorities include the version of shared objects used in a transaction execution within the Effects certificate.
 所有权威机构都遵守此类证书的一致顺序，并根据此顺序分配每个交易使用的共享对象的版本。然后执行可以继续，并保证在所有当局之间保持一致。授权包括在 Effects 证书中的交易执行中使用的共享对象的版本。
 
+The above rules ensure that execution for transactions involving read-only and owned objects requires only consistent broadcast and a single certificate to proceed; and Byzantine agreement is only required for transactions involving shared objects.
+上述规则确保涉及只读和拥有对象的交易的执行只需要一致的广播和单个证书即可进行；只有涉及共享对象的交易才需要拜占庭协议。
+Smart contract authors can therefore design their types and their operations to optimize transfers and other operations on objects of a single user to have lower latency, while enjoying the flexibility of using shared objects to implement logic that needs to be accessed by multiple users.
+因此，智能合约作者可以设计他们的类型和他们的操作来优化传输和单个用户对象的其他操作以具有更低的延迟，同时享受使用共享对象来实现需要由多个用户访问的逻辑的灵活性。
+
+##4.5 Clients(客户端)
+
+Full Clients & Replicas. Replicas, also sometimes called full clients, do not validate new transactions, but maintain a consistent copy of the valid state of the system for the purposes of audit, as well as to construct transactions or operate services incl. read infrastructures for light client queries.
+完整的客户和副本。副本，有时也称为完整客户端，不验证新交易，但维护系统有效状态的一致副本以用于审计目的，以及构建交易或操作服务，包括。读取轻客户端查询的基础设施。
+
+Light Clients. Both object references and transactions contain information that allows the authentication of the full causal chain of transactions that leading up to their creation or execution.
+轻客户端。对象引用和交易都包含允许对导致其创建或执行的完整交易因果链进行身份验证的信息。
+Specifically, an object reference (ObjRef) contains an ObjDigest that is an authenticator for the full state of the object, including the facility to get parent(Obj), namely the TxDigest that created the object. Similarly, a TxDigest authenticates a transaction, including the facility to extract through inputs(Tx) the object references of the input objects.
+具体来说，对象引用 (ObjRef) 包含一个 ObjDigest，它是对象完整状态的验证器，包括获取父对象 (Obj) 的工具，即创建对象的 TxDigest。类似地，TxDigest 对交易进行身份验证，包括通过输入 (Tx) 提取输入对象的对象引用的功能。
+Therefore the set of objects and certificates form a bipartite graph that is self-authenticating. Furthermore, effects structures are also signed, and may be collated into effects certificates that directly certify the results of transaction executions.
+因此，对象和证书的集合形成了一个自认证的二分图。此外，效果结构也被签名，并且可以整理成效果证书，直接证明交易执行的结果。
+
+These facilities may be used to support light clients that can perform high-integrity reads into the state of Sui, without maintaining a full replica node. Specifically an authority or full node may provide a succinct bundle of evidence, comprising a certificate TxCert on a transaction Tx and the input objects [Obj] corresponding to inputs(Tx) to convince a light client that a transition can take place within Sui.
+这些设施可用于支持轻客户端，这些客户端可以执行对 Sui 状态的高完整性读取，而无需维护完整的副本节点。具体来说，权威机构或完整节点可以提供简洁的证据包，包括交易 Tx 上的证书 TxCert 和对应于输入（Tx）的输入对象 [Obj]，以说服轻客户端可以在 Sui 内进行转换。
+A light client may then submit this certificate, or check whether it has been seen by a quorum or sample of authorities to ensure finality. Or it may craft a transaction using the objects resulting from the execution, and observe whether it is successful.
+然后，轻客户端可以提交此证书，或检查它是否已被法定人数或权威样本看到以确保最终性。或者它可以使用执行产生的对象来创建一个交易，并观察它是否成功。
+
+More directly, a service may provide an effects certificate to a client to convince them of the existence and finality of a transition within Sui, with no further action or interaction within the system.
+更直接地说，服务可能会向客户提供效果证书，以说服他们在 Sui 中转换的存在和最终性，而无需在系统内进行进一步的操作或交互。
+If a checkpoint of finalized certificates is available, at an epoch boundary or otherwise, a bundle of evidence including the input objects and certificate, alongside a proof of inclusion of the certificate in the checkpoint is also a proof of finality.
+如果最终证书的检查点可用，在世代边界或其他地方，包括输入对象和证书在内的一揽子证据，以及证书包含在检查点中的证明也是最终证明。
+
+Authorities may use a periodic checkpointing mechanism to create collective checkpoints of finalized transactions, as well as the state of Sui over time. A certificate with a quorum of stake over a checkpoint can be used by light clients to efficiently validate the recent state of objects and emitted events.
+权威机构可以使用定期检查点机制来创建最终交易的集体检查点，以及随时间推移的 Sui 状态。轻客户端可以使用在检查点上具有法定权益的证书来有效地验证对象和发出的事件的最新状态。
+A check pointing mechanism is necessary for committee reconfiguration between epochs. More frequent checkpoints are useful to light clients, and may also be used by authorities to compress their internal data structures as well as synchronize their state with other authorities more efficiently.
+检查点机制对于世代之间的委员会重新配置是必要的。更频繁的检查点对轻客户端很有用，也可能被当局用来压缩其内部数据结构以及更有效地与其他当局同步他们的状态。
+
+##4.6 Bridges
+
+Native support for light clients and shared objects managed by Byzantine agreement allows Sui to support two-way bridges to other blockchains [13]. The trust assumption of such bridges reflect the trust assumptions of Sui and the other blockchain, and do not have to rely on trusted oracles or hardware if the other blockchain also supports light clients [7].
+对拜占庭协议管理的轻客户端和共享对象的原生支持允许 Sui 支持到其他区块链的双向桥接 [13]。这种桥梁的信任假设反映了 Sui 和其他区块链的信任假设，如果其他区块链也支持轻客户端 [7]，则不必依赖可信的预言机或硬件。
+
+Bridges are used to import an asset issued on another blockchain, to represent it and use it as a wrapped asset within the Sui system. Eventually, the wrapped asset can be unlocked and transferred back to a user on the native blockchain.
+桥用于导入在另一个区块链上发行的资产，以表示它并将其用作 Sui 系统中的包装资产。最终，包裹的资产可以被解锁并转移回本地区块链上的用户。
+Bridges can also allow assets issued on Sui to be locked, and used as wrapped assets on other blockchains. Eventually, the wrapped object on the other system can be destroyed, and the object on Sui updated to reflect any changes of state or ownership, and unlocked.
+Bridges 还可以让在 Sui 上发行的资产被锁定，并用作其他区块链上的包装资产。最终，可以销毁另一个系统上的包装对象，并更新 Sui 上的对象以反映状态或所有权的任何更改，并解锁。
+
+The semantics of bridged assets are of some importance to ensure wrapped assets are useful. Fungible assets bridged across blockchains can provide a richer wrapped representation that allows them to be divisible and transferable when wrapped.
+桥接资产的语义对于确保包装资产有用具有一定的重要性。跨区块链桥接的可替代资产可以提供更丰富的包装表示，使它们在包装时可以分割和转移。
+Nonfungible assets are not divisible, but only transferable. They may also support other operations that mutates their state in a controlled manner when wrapped, which may necessitate custom smart contract logic to be executed when they are bridged back and unwrapped.
+不可替代资产不可分割，只能转让。它们还可能支持其他操作，这些操作在包装时以受控方式改变其状态，这可能需要在桥接和解包时执行自定义智能合约逻辑。
+Sui is flexible and allows smart contract authors to define such experiences, since bridges are just smart contracts implemented in Move rather than native Sui concepts – and therefore can be extended using the composability and safety guarantees Move provides.
+Sui 非常灵活，允许智能合约作者定义此类体验，因为桥接只是在 Move 中实现的智能合约，而不是原生的 Sui 概念——因此可以使用 Move 提供的可组合性和安全保证进行扩展。
+
+##4.7 Committee Reconfiguration(委员会重组)
+
+Reconfiguration occurs between epochs when a committee 𝐶𝑒 is replaced by a committee 𝐶𝑒′, where 𝑒 ′ = 𝑒 + 1. Reconfiguration safety ensures that if a transaction Tx was committed at 𝑒 or before, no conflicting transaction can be committed after 𝑒. Liveness ensures that if Tx was committed at or before 𝑒, then it must also be committed after 𝑒.
+当委员会𝐶𝑒被委员会𝐶𝑒'取代时，重新配置发生在时期之间，其中𝑒'=𝑒+1。重新配置安全性确保如果交易Tx在𝑒或之前提交，则在𝑒之后不会提交任何冲突事务。 Liveness 确保如果 Tx 在 𝑒 或之前提交，那么它也必须在 𝑒 之后提交。
+
+We leverage the Sui smart contract system to perform a lot of the work necessary for reconfiguration. Within Sui a system smart contract allows users to lock and delegate stake to candidate authorities. During an epoch, owners of coins are free to delegate by locking tokens, undelegate by unlocking tokens or change their delegation to one or more authorities.
+我们利用 Sui 智能合约系统来执行大量重新配置所需的工作。在 Sui 中，系统智能合约允许用户锁定股权并将其委托给候选机构。在一个世代内，代币所有者可以通过锁定代币自由委托，通过解锁代币取消委托或将他们的委托更改为一个或多个授权机构。
+
+Once a quorum of stake for epoch 𝑒 vote to end the epoch, authorities exchange information to commit to a checkpoint, determine the next committee, and change the epoch. First, authorities run a check pointing protocol, with the help of an agreement protocol [9], to agree on a certified checkpoint for the end of epoch 𝑒. The checkpoint contains the union of all transactions, and potentially resulting objects, that have been processed by a quorum of authorities.
+一旦世代的法定人数 𝑒 投票结束纪元，权威机构交换信息以提交检查点，确定下一个委员会，并更改世代。首先，权威机构在协议 [9] 的帮助下运行检查点协议，以就世代 𝑒 结束时的认证检查点达成一致。检查点包含所有交易的联合，以及可能产生的对象，这些交易已由法定机构处理。
+As a result if a transaction has been processed by a quorum of authorities, then at least one honest authorities that processed it will have its processed transactions included in the end-of-epoch checkpoint, ensuring the transaction and its effects are durable across epochs. Furthermore, such a certified checkpoint guarantees that all transactions are available to honest authorities of epoch 𝑒.
+因此，如果一笔交易已由法定人数的权威机构处理，那么至少有一个处理它的诚实权威机构会将其处理过的交易包含在世代末检查点中，以确保交易及其影响跨世代持久。此外，这样一个经过认证的检查点保证所有交易都可以提供给纪元𝑒的诚实权威机构。
+
+The stake delegation at the end-of-epoch checkpoint is then used to determine the new set of authorities for epoch 𝑒 + 1. Both a quorum of the old authorities stake and a quorum of the new authority stake signs the new committee 𝐶𝑒′, and checkpoint at which the new epoch commences. Once both set of signatures are available the new set of authorities start processing transactions for the new epoch, and old authorities may delete their epoch signing keys.
+然后使用世代末检查点的权益委托来确定世代 𝑒 + 1 的新授权集。旧授权权益的法定人数和新授权权益的法定人数都签署了新委员会𝐶𝑒'，和新世代开始的检查点。一旦两组签名都可用，新的授权机构就开始处理新世代的交易，而旧的授权机构可以删除他们的世代签名密钥。
+
+Recovery. It is possible due to client error or client equivocation for an owned object to become ‘locked’ within an epoch, preventing any transaction concerning it from being certified (or finalized).
+恢复。由于客户端错误或客户端模棱两可，拥有的对象可能会在一个时期内“锁定”，从而阻止与它相关的任何交易被认证（或最终确定）
+For example, a client signing two different transactions using the same owned object version, with half of authorities signing each, would be unable to form a certificate requiring a quorum of signatures on any of the two certificates. Recovery ensures that once epochs change such objects are again in a state that allows them to be used in transactions.
+例如，客户端使用相同的拥有对象版本签署两个不同的交易，每个授权机构签署一半，将无法形成需要在两个证书中的任何一个上进行法定人数签名的证书。恢复确保一旦世代改变，这些对象再次处于允许它们在交易中使用的状态。
+Since, no certificate can be formed, the original object is available at the start of the next epoch to be operated on. Since transactions contain an epoch number, the old equivocating transactions will not lock the object again, giving its owner a chance to use it.
+由于无法形成证书，原始对象在下一个要操作的纪元开始时可用。由于交易包含世代号，旧的模棱两可的交易不会再次锁定该对象，从而为其所有者提供使用它的机会。
+
+Rewards & cryptoeconomics. Sui has a native token SUI, with a fixed supply. SUI is used to pay for gas, and is also be used as delegated stake on authorities within an epoch.
+奖励和加密经济学。 Sui 有一个原生代币 SUI，供应量固定。 SUI 用于支付 gas 费用，也被用作一个 epoch 内授权的委托权益。
+The voting power of authorities within this epoch is a function of this delegated stake. At the end of the epoch fees collected through all transactions processed are distributed to authorities according to their contribution to the operation of Sui, and in turn they share some of the fees as rewards to addresses that delegated stake to them. We postpone a full description of the token economics of Sui to a dedicated paper.
+这个时期内权威机构的投票权是这个委托权益的函数。在 epoch 结束时，通过处理的所有交易收取的费用将根据他们对 Sui 运营的贡献分配给权威机构，然后他们将部分费用作为奖励分享给委托给他们的地址。我们将对 Sui 代币经济学的完整描述推迟到专门的论文中。
+
+##4.8 Authority & Replica Updating(权限和副本更新)
+
+Client-driven. Due to client failures or non-byzantine authority failures, some authorities may not have processed all certificates. As a result causally related transactions depending on missing objects generated by these certificates would be rejected.
+客户驱动。由于客户端故障或非拜占庭权限故障，某些权限可能没有处理所有证书。因此，依赖于由这些证书生成的缺失对象的因果关系交易将被拒绝。
+However, a client can always update an honest authority to the point where it is able to process a correct transaction. It may do this using its own store of past certificates, or using one or more other honest authorities as a source for past certificates.
+但是，客户端始终可以将诚实授权更新到能够处理正确交易的程度。它可以使用自己的过去证书存储库或使用一个或多个其他诚实的权威机构作为过去证书的来源来执行此操作。
+
+Given a certificate 𝑐 and a 𝐶𝑡𝑣 store that includes𝑐 and its causal history, a client can update an honest authority 𝑣′ to the point where 𝑐 would also be applied. This involves finding the smallest set of certificates not in 𝑣′ such that when applied the Objects in 𝑣′ include all inputs of 𝑐. Updating a lagging authority 𝐵 using a store 𝐶𝑡𝑣 including the certificate TxCert involves:
+给定证书𝑐 和包含𝑐 及其因果历史的𝐶𝑡𝑣 存储，客户端可以将诚实授权𝑣′ 更新到也将应用𝑐 的点。这涉及找到不在 𝑣′ 中的最小证书集，以便在应用 𝑣′ 中的对象时包括 𝑐 的所有输入。使用商店 𝐶𝑡𝑣 更新滞后权威 𝐵 包括证书 TxCert 涉及：
+
+• The client maintains a list of certificates to sync, initially set to contain just TxCert.
+• 客户端维护要同步的证书列表，最初设置为只包含TxCert。
+
+• The client considers the last TxCert requiring sync. It extracts the Tx within the TxCert and derives all its input objects (using Input(Tx)).
+• 客户端考虑需要同步的最后一个TxCert。它提取 TxCert 中的 Tx 并派生其所有输入对象（使用 Input(Tx)）。
+
+• For each input object it checks whether the Tx that generated or mutated last (using the Sync𝑣 index on 𝐶𝑡𝑣 ) has a certificate within 𝐵, otherwise its certificate is read from 𝐶𝑡𝑣 and added to the list of certificates to sync.
+• 对于每个输入对象，它检查最后生成或变异的Tx（使用𝐶𝑡𝑣 上的Sync𝑣 索引）是否在𝐵 内有一个证书，否则它的证书从𝐶𝑡𝑣 中读取并添加到要同步的证书列表中。
+
+• If no more certificates can be added to the list (because no more inputs are missing from 𝐵) the certificate list is sorted in a causal order and submitted to 𝐵.
+• 如果没有更多的证书可以添加到列表中（因为𝐵 中没有更多的输入丢失），则证书列表按因果顺序排序并提交给𝐵。
+
+The algorithm above also applies to updating an object to a specific version to enable a new transaction. In this case the certificate for the Tx that generated the object version, found in Sync𝑣 [ObjRef], is submitted to the lagging authority. Once it is executed on 𝐵 the object at the correct version will become available to use.
+上述算法也适用于将对象更新到特定版本以启用新交易。在这种情况下，生成对象版本的 Tx 的证书，在 Sync𝑣 [ObjRef] 中找到，被提交给滞后的授权机构。一旦它在 𝐵 上执行，正确版本的对象将可供使用。
+
+A client performing this operation is called a relayer. There can be multiple relayers operating independently and concurrently. They are untrusted in terms of integrity, and their operation is keyless. Besides clients, authorities can run the relayer logic to update each other, and replicas operating services can also act as relayers to update lagging authorities.
+执行此操作的客户端称为中继器。可以有多个独立和同时运行的中继器。他们在完整性方面不受信任，并且他们的操作是无钥匙的。除了客户端之外，权威机构还可以运行中继器逻辑来相互更新，副本操作服务也可以充当中继器来更新滞后的权威机构。
+
+Bulk. Authorities provide facilities for a follower to receive updates when they process a certificate. This allows replicas to maintain an up-to-date view of an authorty’s state. Furthermore, authorities may use a push-pull gossip network to update each other of the latest processed transaction in the short term and to reduce the need for relayers to perform this function.
+大部分。权威机构为追随者提供便利，以便他们在处理证书时接收更新。这允许副本维护权威状态的最新视图。此外，权威机构可以使用推拉gossip网络在短期内相互更新最新处理的交易，并减少中继器执行此功能。
+In the longer term lagging authorities may use periodic state commitments, at epoch boundaries or more frequently, to ensure they have processed a complete set of certificates up to certain check points.
+从长远来看，落后的权威机构可能会在世代边界或更频繁地使用周期性的状态承诺，以确保他们已经处理了一整套直到某些检查点的证书。
+
+#5 SCALING AND LATENCY(缩放和延迟)
+
+The Sui system allows scaling though authorities devoting more resources, namely CPUs, memory, network and storage within a machine or over multiple machines, to the processing of transactions.
+Sui 系统允许权威机构通过投入更多资源（即一台机器或多台机器上的 CPU、内存、网络和存储）来扩展交易处理。
+More resources lead to an increased ability to process transactions, leading to increased fees income to fund these resources.
+更多的资源导致处理交易的能力增强，从而导致为这些资源提供资金的费用收入增加。
+More resources also results in lower latency, as operations are performed without waiting for necessary resources to become available.
+更多的资源也会导致更低的延迟，因为无需等待必要的资源可用即可执行操作。
+
+Throughput. To ensure that more resources result in increased capacity quasi-linearly, the Sui design aggressively reduces bottlenecks and points of synchronization requiring global locks within authorities.
+吞吐量。为了确保更多的资源导致容量准线性增加，Sui 设计积极减少了瓶颈和需要在权限内进行全局锁定的同步点。
+Processing transactions is cleanly separated into two phases, namely (1) ensuring the transaction has exclusive access to the owned or shared objects at a specific version, and (2) then subsequently executing the transaction and committing its effects.
+处理事务清楚地分为两个阶段，即 (1) 确保事务具有对特定版本的拥有或共享对象的独占访问权，以及 (2) 随后执行交易并提交其效果。
+
+Phase (1) requires a transaction acquiring distributed locks at the granularity of objects. For owned objects this is performed trough a reliable broadcast primitive, that requires no global synchronization within the authority, and therefore can be scaled through sharding the management of locks across multiple machines by ObjID. For transactions involving shared objects sequencing is required using a consensus protocol, which does impose a global order on these transactions and has the potential to be a bottleneck.
+阶段（1）需要交易获取对象粒度的分布式锁。对于拥有的对象，这是通过可靠的广播原语执行的，它不需要权限内的全局同步，因此可以通过 ObjID 跨多台机器对锁的管理进行分片来扩展。对于涉及共享对象的事务，需要使用共识协议进行排序，这确实对这些事务施加了全局顺序，并有可能成为瓶颈。
+However, recent advances on engineering high-throughput consensus protocols [9] demonstrate that sequential execution is the bottleneck in state machine replication, not sequencing. In Sui, sequencing is only used to determine a version for the input shared object, namely incrementing an object version number and associating it with the transaction digest, rather than performing sequential execution.
+然而，工程高吞吐量共识协议的最新进展 [9] 表明顺序执行是状态机复制的瓶颈，而不是排序。在Sui中，排序仅用于确定输入共享对象的版本，即递增对象版本号并将其与交易摘要相关联，而不是执行顺序执行。
+
+Phase (2) takes place when the version of all input objects is known to an authority (and safely agreed across authorities) and involves execution of the Move transaction and commitment of its effects. Once the version of input objects is known, execution can take place completely in parallel. Move virtual machines on multiple cores or physical machines read the versioned input objects, execute, and write the resulting objects from and to stores.
+阶段 (2) 发生在所有输入对象的版本为权威机构所知（并在权威机构之间安全地达成一致）并且涉及 Move 交易的执行及其效果的承诺。一旦知道输入对象的版本，就可以完全并行地执行。在多核或物理机上移动虚拟机读取版本化的输入对象，执行并将结果对象写入存储。
+The consistency requirements on stores for objects and transactions(besides the order lock map) are very loose, allowing scalable distributed key-value stores to be used internally by each authority. Execution is idempotent, making even crashes or hardware failures on components handling execution easy to recover from.
+对象和交易存储的一致性要求（除了顺序锁映射）非常宽松，允许每个机构在内部使用可扩展的分布式键值存储。执行是幂等的，即使处理执行的组件发生崩溃或硬件故障也很容易恢复。
+
+As a result, execution for transactions that are not causally related to each other can proceed in parallel. Smart contract designers may therefore design the data model of objects and operations within their contracts to take advantage of this parallelism.
+因此，相互之间没有因果关系的交易的执行可以并行进行。因此，智能合约设计者可以在他们的合约中设计对象和操作的数据模型，以利用这种并行性。
+
+Check-pointing and state commitments are computed off the critical transaction processing path to not block the handling of fresh transactions. These involve read operations on committed data rather than requiring computation and agreement before a transaction reaches finality. Therefore they do not affect the latency or throughput of processing new transactions, and can themselves be distributed across available resources.
+检查点和状态承诺是在关键交易处理路径之外计算的，不会阻止新交易的处理。这些涉及对已提交数据的读取操作，而不是在交易达到最终结果之前需要计算和协议。因此，它们不会影响处理新交易的延迟或吞吐量，并且它们本身可以分布在可用资源中。
+
+Reads can benefit from very aggressive, and scalable caching. Authorities sign and make available all data that light clients require for reads, which may be served by distributed stores as static data.
+读取可以从非常积极且可扩展的缓存中受益。权威机构签署并提供轻客户端读取所需的所有数据，这些数据可能由分布式存储作为静态数据提供。
+Certificates act as roots of trust for their full causal history of transactions and objects. State commitments further allow for the whole system to have regular global roots of trust for all state and transactions processed, at least every epoch or more frequently.
+证书作为交易和对象完整因果历史的信任根。状态承诺进一步允许整个系统对所有状态和处理的交易具有定期的全球信任根，至少每个时期或更频繁。
+
+Latency. Smart contract designers are given the flexibility to control the latency of operations they define, depending on whether they involve owned or shared objects. Owned objects rely on a reliable broadcast before execution and commit, which requires two round trips to a quorum of authorities to reach finality.
+潜伏。智能合约设计者可以灵活地控制他们定义的操作的延迟，具体取决于它们是涉及拥有的还是共享的对象。拥有的对象在执行和提交之前依赖于可靠的广播，这需要两次往返到授权机构的法定人数才能达到最终结果。
+Operations involving shared objects, on the other hand, require a consistent broadcast to create a certificate, and then be processed within a consensus protocol, leading to increased latency (4 to 8 round trips to quorums as of [9]).
+另一方面，涉及共享对象的操作需要一致的广播来创建证书，然后在共识协议中进行处理，从而导致延迟增加（从 [9] 开始需要 4 到 8 次往返仲裁）。
+
+
+
+
+
+
+
+
 
 
 
