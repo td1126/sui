@@ -365,6 +365,178 @@ An Object (Obj) stores user smart contracts and data within Sui. They are the Su
 • contents(Obj) returns the object type Type and data Data that can be used to check the validity of transactions and carry the application-specific information of the object.
 • contents(Obj) 返回对象类型Type 和数据Data，可用于检查交易的有效性并携带对象的应用程序特定信息。
 
+The object reference (ObjRef) is used to index objects. It is also used to authenticate objects since ObjDigest is a commitment to their full contents.
+对象引用 (ObjRef) 用于索引对象。它也用于验证对象，因为 ObjDigest 是对其全部内容的承诺。
+
+A transaction (Tx) is a structure representing a state transition for one or more objects. They support the following set of operations:
+交易 (Tx) 是表示一个或多个对象的状态转换的结构。它们支持以下一组操作：
+
+• digest(Tx) returns the TxDigest, which is a binding cryptographic commitment to the transaction.
+• digest(Tx) 返回TxDigest，这是对交易的绑定加密承诺。
+
+• epoch(Tx) returns the EpochID during which this transaction may be executed.
+• epoch(Tx) 返回 EpochID，在此期间可能会执行此交易。
+
+• inputs(Tx) returns a sequence of object [ObjRef] the transaction needs to execute.
+• inputs(Tx) 返回交易需要执行的对象序列[ObjRef]。
+
+• payment(Tx) returns a reference to an ObjRef to be used to pay for gas, as well as the maximum gas limit, and a conversion rate between a unit of gas and the unit of value in the gas payment object.
+• payment(Tx) 返回对用于支付gas 的ObjRef 的引用，以及最大gas 限额，以及gas 支付对象中gas 单位与价值单位之间的转换率。
+
+• valid(Tx, [Obj]) returns true if the transaction is valid, given the requested input objects provided. Validity is discussed in Sect. 4.4, and relates to the transactions being authorized to act on the input objects, as well as sufficient gas being available to cover the costs of its execution.
+• 如果交易有效，valid(Tx, [Obj]) 返回真，给定所提供的请求输入对象。有效性在 Sect. 4.4，并涉及被授权对输入对象采取行动的交易，以及足够的 gas 可用于支付其执行成本。
+
+• exec(Tx, [Obj]) executes the transaction and returns a structure Effects representing its effects. A valid transaction execution is infallible, and its output is deterministic.
+• exec(Tx, [Obj]) 执行交易并返回表示其效果的结构Effects。有效的交易执行是绝对可靠的，其输出是确定性的。
+
+A transaction is indexed by its TxDigest, which may also be used to authenticate its full contents. All valid transactions (except the special hard-coded genesis transaction) have at least one owned input, namely the objects used to pay for gas.
+交易由其 TxDigest 索引，也可用于验证其全部内容。所有有效交易（特殊的硬编码创世交易除外）至少有一个拥有的输入，即用于支付 gas 的对象。
+
+A transaction effects (Effects) structure summarizes the outcome of a transaction execution. It supports the following operations:
+一个交易效果（Effects）结构总结了一个交易执行的结果。它支持以下操作：
+
+• digest(Effects) is a commitment EffDigest to the Effects structure, that may be used to index or authenticate it.
+• digest(Effects) 是EffDigest 对Effects 结构的承诺，可用于索引或验证它。
+
+• transaction(Effects) returns the TxDigest of the executed transaction yielding the effects.
+• transaction(Effects) 返回产生效果的已执行交易的TxDigest。
+
+• dependencies(Effects) returns a sequence of dependencies[TxDigest] that should be executed before the transaction with these effects may execute.
+• dependencies(Effects) 返回一系列dependencies[TxDigest]，这些dependencies[TxDigest] 应该在具有这些影响的交易执行之前执行。
+
+• contents(Effects) returns a summary of the execution. Status reports the outcome of the smart contract execution. The lists Created, Mutated, Wrapped, Unwrapped and Deleted, list the object references that underwent the respective operations. And Events lists the events emitted by the execution.
+• contents(Effects) 返回执行摘要。状态报告智能合约执行的结果。 Created、Mutated、Wrapped、Unwrapped 和 Deleted 列表列出了经过相应操作的对象引用。 Events 列出了执行发出的事件。
+
+A transaction certificate TxCert on a transaction contains the transaction itself as well as the identifiers and signatures from a quorum of authorities.
+交易的交易证书 TxCert 包含交易本身以及来自法定机构的标识符和签名。
+Note that a certificate may not be unique, in that the same logical certificate may be represented by a different set of authorities forming a quorum.
+请注意，证书可能不是唯一的，因为相同的逻辑证书可能由形成法定人数的一组不同的授权机构表示。
+Additionally, a certificate might not strictly be signed by exactly a 2/3 quorum, but possibly more if more authorities are responsive. However, two different valid certificates on the same transaction should be treated as representing semantically the same certificate.
+此外，证书可能不会严格由 2/3 的法定人数签署，但如果有更多的授权机构响应，则可能更多。但是，同一交易中的两个不同的有效证书应被视为在语义上表示相同的证书。
+A partial certificate (TxSign) contains the same information, but signatures from a set of authorities representing stake lower than the required quorum, usually a single authority.
+部分证书 (TxSign) 包含相同的信息，但来自一组权限的签名代表低于所需的法定人数，通常是单个权限。
+The identifiers of signers are included in the certificate (i.e., accountable signatures [? ]) to identify authorities ready to process the certificate, or that may be used to download past information required to process the certificate (see Sect. 4.8).
+签名者的标识符包含在证书中（即负责签名 [?]），以识别准备好处理证书的机构，或者可用于下载处理证书所需的过去信息（参见第 4.8 节）。
+
+Similarly, an effects certificate EffCert on an effects structure contains the effects structure itself, and signatures from authorities5 that represent a quorum for the epoch in which the transaction is valid.
+类似地，效果结构上的效果证书 EffCert 包含效果结构本身，以及来自权威机构的签名5，代表交易有效时期的法定人数。
+The same caveats, about non-uniqueness and identity apply as for transaction certificates. A partial effects certificate, usually containing a single authority signature and the effects structure is denoted as EffSign.
+关于非唯一性和身份的相同警告适用于交易证书。部分效果证书，通常包含单个授权机构签名，效果结构表示为 EffSign。
+
+Persistent Stores. Each authority and replica maintains a set of persistent stores. The stores implement persistent map semantics and can be represented as a set of key-value pairs (denoted 𝑚𝑎𝑝 [𝑘𝑒𝑦] → 𝑣𝑎𝑙𝑢𝑒), such that only one pair has a given key.
+持久性存储。每个授权机构和复制副本都维护一组持久存储。存储实现持久映射语义，并且可以表示为一组键值对（表示为𝑚𝑎𝑝 [𝑘𝑒𝑦] → 𝑣𝑎𝑙𝑢𝑒), 使得只有一对具有给定的密钥。
+Before a pair is inserted a contains(𝑘𝑒𝑦) call returns false, and get(𝑘𝑒𝑦)returns an error. After a pair is inserted contains(𝑘𝑒𝑦) calls returns true, and get(𝑘𝑒𝑦) return the value. An authority maintains the following persistent stores:
+在插入一对之前，包含(𝑘𝑒𝑦) 调用返回false，并获取(𝑘𝑒𝑦)返回一个错误。插入一对后包含(𝑘𝑒𝑦) calls返回true，得到(𝑘𝑒𝑦) 返回值。授权机构维护以下持久存储：
+
+• The order lock map Lock𝑣 [ObjRef] → TxSignOption records the first valid transaction Tx seen and signed by the authority for an owned object version ObjRef, or None if the object version exists but no valid transaction using as an input it has been seen. It may also record the first certificate seen with this object as an input. This table, and its update rules, represents the state of the distributed locks on objects across Sui authorities, and ensures safety under concurrent processing of transactions.
+• 订单锁定map Lock𝑣 [对象参考]→ TxSignOption记录由拥有的对象版本ObjRef的授权机构看到并签署的第一个有效交易Tx，或者如果对象版本存在但没有看到有效交易作为输入，则记录None。它还可以记录使用该对象作为输入看到的第一个证书。该表及其更新规则代表了跨Sui权限的对象上的分布式锁的状态，并确保了事务并发处理下的安全性。
+
+• The certificate map Ct𝑣 [TxDigest] → (TxCert, EffSign)records all full certificates TxCert, which also includes Tx, processed by the authority within their validity epoch, along with their signed effects EffSign. They are indexed by transaction digest TxDigest
+• 证书map Ct𝑣 [Tx摘要]→ （TxCert，EffSign）记录所有完整证书TxCert（也包括Tx），由权威机构在其有效期内处理，以及其签名效果EffSign。它们按事务摘要TxDigest进行索引
+
+• The object map Obj𝑣 [ObjRef] → Obj records all objects Obj created by transactions included in certificates within Ct𝑣 indexed by ObjRef. This store can be completely derived by re-executing all certificates in Ct𝑣 . A secondary index is maintained that maps ObjID to the latest object with this ID. This is the only information necessary to process new transactions, and older versions are only maintained to facilitate reads and audit.
+• 对象map Obj𝑣 [对象参考]→ Obj记录Ct𝑣中证书中包含的交易创建的所有对象Obj𝑣 由ObjRef索引。通过重新执行Ct𝑣中的所有证书，可以完全派生此存储𝑣 . 维护一个辅助索引，将ObjID映射到具有此ID的最新对象。这是处理新事务所需的唯一信息，而维护旧版本只是为了方便读取和审核。
+
+• The synchronization map Sync𝑣 [ObjRef] → TxDigest indexes all certificates within Ct𝑣 by the objects they create, mutate or delete as tuples ObjRef. This structure can be fully re-created by processing all certificates in Ct𝑣 , and is used to help client synchronize transactions affecting objects they care about.
+• 同步map Sync𝑣 [对象参考]→ TxDigest对Ct中的所有证书进行索引𝑣 通过它们作为元组ObjRef创建、变异或删除的对象。通过处理Ct中的所有证书，可以完全重新创建此结构𝑣 , 并且用于帮助客户端同步影响他们关心的对象的事务。
+
+Authorities maintain all four structures, and also provide access to local checkpoints of their certificate map to allow other authorities and replicas to download their full set of processed certificates.
+授权机构维护所有四个结构，并提供对其证书映射的本地检查点的访问，以允许其他授权机构和副本下载他们的全套已处理证书。
+A replica does not process transactions but only certificates, and re-executes them to update the other tables as authorities do. It also maintains an order lock map to audit non-equivocation.
+副本不处理交易，只处理证书，并像授权机构一样重新执行它们以更新其他表。它还维护一个订单锁映射以审核非模棱两可的情况。
+
+An authority may be designed as a full replica maintaining all four stores (and checkpoints) to facilitate reads and synchronization, combined with a minimal authority core that only maintains object locks and objects for the latest version of objects used to process new transactions and certificates. This minimizes the Trusted Computing Base relied upon for safety.
+授权可以设计为维护所有四个存储（和检查点）以促进读取和同步的完整副本，并结合最小授权核心，该核心仅维护对象锁和用于处理新交易和证书的最新版本对象的对象。这最大限度地减少了安全所依赖的可信计算库。
+
+Only the order lock map requires strong key self-consistency, namely a read on a key should always return whether a value or None is present for a key that exists, and such a check should be atomic with an update that sets a lock to a non-None value.
+只有 order lock map 需要强键自洽性，即对键的读取应该始终返回是否存在值或 None 对于存在的键，并且这样的检查应该是原子的，更新将锁设置为非无值。
+This is a weaker property than strong consistency across keys, and allows for efficient sharding of the store for scaling. The other stores may be eventually consistent without affecting safety.
+这是一个比键之间的强一致性更弱的属性，并且允许对存储进行有效分片以进行扩展。其他存储可能在不影响安全的情况下最终保持一致。
+
+##4.3 Authority Base Operation(权限库操作)
+
+Process Transaction. Upon receiving a transaction Tx an authority performs a number of checks:
+处理交易。收到交易 Tx 后，权威机构会执行多项检查：
+
+(1) It ensures epoch(Tx) is the current epoch.
+(1) 它确保 epoch(Tx) 是当前 epoch。
+(2) It ensures all object references inputs(Tx) and the gas object reference in payment(Tx) exist within Obj𝑣 and loads them into [Obj]. For owned objects the exact reference should be available; for read-only or shared objects the object ID should exist.
+(2) 它确保所有对象引用 inputs(Tx) 和 payment(Tx) 中的 gas 对象引用存在于 Obj𝑣 中，并将它们加载到 [Obj] 中。对于拥有的对象，应该有准确的引用；对于只读或共享对象，对象 ID 应该存在。
+(3) Ensures sufficient gas can be made available in the gas object to cover the cost of executing the transaction.
+(3) 确保 gas 对象中有足够的 gas 可用以支付执行交易的成本。
+(4) It checks valid(Tx, [Obj]) is true. This step ensures the authentication information in the transaction allows access to the owned objects.
+(4) 它检查 valid(Tx, [Obj]) 是否为真。此步骤确保事务中的身份验证信息允许访问拥有的对象。
+(5) It checks that Lock𝑣 [ObjRef] for all owned inputs(Tx) objects exist, and it is either None or set to the same Tx, and atomically sets it to TxSign. (We call these the ‘locks checks’).
+(5) 它检查所有拥有的 inputs(Tx) 对象的 Lock𝑣 [ObjRef] 是否存在，并且它是 None 或设置为相同的 Tx，并自动将其设置为 TxSign。 （我们称这些为“锁检查”）。
+
+If any of the checks fail processing ends, and an error is returned. However, it is safe for a partial update of Lock𝑣 to persist (although our current implementation does not do partial updates, but atomic updates of all locks).
+如果任何检查失败，处理结束，并返回错误。但是，Lock𝑣 的部分更新持久化是安全的（尽管我们当前的实现不进行部分更新，而是对所有锁进行原子更新）。
+
+If all checks are successful then the authority returns a signature on the transaction, ie. a partial certificate TxSign. Processing an order is idempotent upon success, and returns a partial certificate(TxSign), or a full certificate (TxCert) if one is available.
+如果所有检查都成功，则权威机构返回交易签名，即部分证书 TxSign。成功处理订单是幂等的，并返回部分证书（TxSign）或完整证书（TxCert）（如果可用）。
+
+Any party may collate a transaction and signatures (TxSign)for a set of authorities forming a quorum for epoch 𝑒, to form a transaction certificate TxCert.
+任何一方都可以整理交易和一组授权机构的签名（TxSign），形成世代 𝑒 的法定人数，以形成交易证书 TxCert。
+
+Process Certificate. Upon receiving a certificate an authority checks all validity conditions for the transaction, except those relating to locks (the so-called ‘locks checks’). Instead it performs the following checks: for each owned input object in inputs(Tx) it checks that the lock exists, and that it is either None, set to any TxSign, or set to a certificate for the same transaction as the current certificate.
+过程证书。收到证书后，权威机构会检查交易的所有有效性条件，但与锁相关的条件除外（所谓的“锁检查”）。相反，它执行以下检查：对于 inputs(Tx) 中的每个拥有的输入对象，它检查锁是否存在，以及它是否为 None，设置为任何 TxSign，或设置为与当前证书相同的事务的证书。
+If this modified locks check fails, the authority has detected an unrecoverable Byzantine failure, halts normal operations, and starts a disaster recovery process. For shared objects (see Sect. 4.4) authorities check that the locks have been set through the certificate being sequenced in a consensus, to determine the version of the share object to use. If so, the transaction may be executed; otherwise it needs to wait for such sequencing first.
+如果此修改后的锁检查失败，则权威机构检测到不可恢复的拜占庭故障，停止正常操作，并启动灾难恢复过程。对于共享对象（参见第 4.4 节），当局检查是否已通过在共识中排序的证书设置了锁，以确定要使用的共享对象的版本。如果是，则可以执行交易；否则需要先等待这样的排序。
+
+If the check succeeds, the authority adds the certificate to its certificate map, along with the effects resulting from its execution, ie. Ct𝑣 [TxDigest] → (TxCert, EffSign); it updates the locks map to record the certificate Lock𝑣 [ObjRef] → TxCert for all owned input objects that have locks not set to a certificate.
+如果检查成功，权威机构将证书添加到其证书映射中，以及其执行产生的效果，即。 Ct𝑣 [TxDigest] → (TxCert, EffSign);它更新锁集合以记录证书 Lock𝑣 [ObjRef] → TxCert 用于所有拥有未设置为证书的锁的输入对象。
+As soon as all objects in Input(Tx) is inserted in Obj𝑣 , then all effects in EffSign are also materialized by adding their ObjRef and contents to Obj𝑣 . Finally for all created or mutated in EffSign the synchronization map is updated to map them to Tx.
+一旦 Input(Tx) 中的所有对象都插入到 Obj𝑣 中，然后 EffSign 中的所有效果也会通过将它们的 ObjRef 和内容添加到 Obj𝑣 中来具体化。最后，对于在 EffSign 中创建或更改的所有内容，同步映射将更新以将它们映射到 Tx。
+
+Remarks. The logic for handling transactions and certificates leads to a number of important properties:
+重点。处理交易和证书的逻辑导致了许多重要的属性：
+
+• Causality & parallelism. The processing conditions for both transactions and certificates ensure causal execution:an authority only ‘votes’ by signing a transaction if it has processed all certificates creating the objects the transaction depends upon, both owned, shared and read-only. Similarly, an authority only processes a certificate if all input objects upon which it depends exist in its local objects map. This imposes a causal execution order, but also enables transactions not causally dependent on each other to be executed in parallel on different cores or machines.
+• 因果关系和平行关系。交易和证书的处理条件确保了因果执行：如果一个机构已经处理了创建交易所依赖的对象的所有证书，则该机构仅通过签署交易来“投票”，包括拥有的、共享的和只读的。类似地，如果授权所依赖的所有输入对象都存在于其本地对象映射中，则授权仅处理证书。这强加了一个因果执行顺序，但也使相互不因果依赖的交易能够在不同的内核或机器上并行执行。
+
+• Sign once, and safety. All owned input objects locks in Lock𝑣 [·] are set to the first transaction Tx that passes the checks using them, and then the first certificate that uses the object as an input. We call this locking the object to this transaction, and there is no unlocking within an epoch. As a result an authority only signs a single transaction per lock, which is an essential component of consistent broadcast [6], and thus the safety of Sui.
+• 一次签名，安全。 Lock𝑣 [·] 中所有拥有的输入对象锁被设置为使用它们通过检查的第一个交易 Tx，然后是使用该对象作为输入的第一个证书。我们把这个对象锁定到这个交易上，一个epoch内是不会解锁的。因此，权威机构每个锁只签署一个交易，这是一致广播 [6] 的重要组成部分，因此也是 Sui 的安全性。
+
+• Disaster recovery. An authority detecting two contradictory certificates for the same lock, has proof of irrecoverable Byzantine behaviour – namely proof that the quorum honest authority assumption does not hold. The two contradictory certificates are a fraud proof [1], that may be shared with all authorities and replicas to trigger disaster recovery processes. Authorities may also get other forms of proof of unrecoverable byzantine behaviour such as >1/3 signatures on effects (EffSign) that represent an incorrect execution of a certificate. Or a certificate with input objects that do not represent the correct outputs of previously processed certificates. These also can be packaged as a fraud proof and shared with all authorities and replicas. Note these are distinct from proofs that a tolerable minority of authorities(≤ 1/3 by stake) or object owners (any number) is byzantine or equivocating, which can be tolerated without any service interruption.
+• 灾难恢复。为同一把锁检测到两个相互矛盾的证书的权威机构，拥有不可恢复的拜占庭行为的证据——即证明群体诚实权威假设不成立的证据。这两个相互矛盾的证书是欺诈证明 [1]，可以与所有授权机构和副本共享以触发灾难恢复过程。权威机构还可以获得其他形式的不可恢复的拜占庭行为证明，例如 >1/3 的效果签名 (EffSign)，表示证书执行不正确。或者带有输入对象的证书不代表先前处理的证书的正确输出。这些也可以打包为欺诈证明，并与所有权威机构和副本共享。请注意，这些与证明可容忍的少数权力机构（≤ 1/3 股份）或对象所有者（任何数量）是拜占庭式或模棱两可的证据不同，后者可以在没有任何服务中断的情况下被容忍。
+
+• Finality. Authorities return a certificate (TxCert) and the signed effects (EffSign) for any read requests for an index in Lock𝑣 , Ct𝑣 and Obj𝑣 , Sync𝑣 . 
+    A transaction is considered final if over a quorum of authorities reports Tx as included in their Ct𝑣 store. This means that an effects certificate(EffCert) is a transferable proof of finality. 
+    However, a certificate using an object is also proof that all dependent certificates in its causal path are also final. Providing a certificate to any party, that may then submit it to a super majority of authorities for processing also ensures finality for the effects of the certificate. Note that finality is later than fastpay [3] to ensure safety under re-configuration.
+    However, an authority can apply the effect of a transaction upon seeing a certificate rather than waiting for a commit.
+• 终局性。权威机构为 Lock𝑣、Ct𝑣 和 Obj𝑣、Sync𝑣 中的索引的任何读取请求返回证书 (TxCert) 和签名效果 (EffSign)。
+    如果超过法定人数的权威机构报告 Tx 包含在他们的 Ct𝑣 商店中，则交易被认为是最终的。这意味着效果证书（EffCert）是一种可转让的最终证明。
+    但是，使用对象的证书也证明其因果路径中的所有相关证书也是最终的。向任何一方提供证书，然后可以将其提交给绝大多数权威机构进行处理，这也确保了证书效力的最终性。请注意，最终确定性晚于 fastpay [3] 以确保重新配置下的安全性。
+    但是，授权机构可以在看到证书而不是等待提交时应用交易的影响。
+
+##4.4 Owners, Authorization, and Shared Objects(所有者、授权和共享对象)
+
+Transaction validity (see Sect. 4.3) ensures a transaction is authorized to include all specified input objects in a transaction. This check depends on the nature of the object, as well as the owner field.
+交易有效性（见第 4.3 节）确保交易被授权在交易中包含所有指定的输入对象。此检查取决于对象的性质以及对象的所有者字段。
+
+Read-only objects cannot be mutated or deleted, and can be used in transactions concurrently and by all users. Move modules for example are read-only. Such objects do have an owner that might be used as part of the smart contract, but that does not affect authorization to use them. They can be included in any transaction.
+只读对象不能被修改或删除，并且可以在交易中并发地被所有用户使用。例如Move模块是只读的。这些对象确实有一个所有者，可以用作智能合约的一部分，但这并不影响使用它们的授权。它们可以包含在任何交易中。
+
+Owned objects have an owner field. The owner can be set to an address representing a public key. In that case, a transaction is authorized to use the object, and mutate it, if it is signed by that address. A transaction is signed by a single address, and therefore can use one or more objects owned by that address.
+拥有的对象有一个所有者字段。所有者可以设置为代表公钥的地址。在这种情况下，交易被授权使用该对象，如果它是由该地址签名的，则可以改变它。交易由单个地址签名，因此可以使用该地址拥有的一个或多个对象。
+However, a single transaction cannot use objects owned by more than one address. The owner of an object, called a child object, can be set to the ObjID of another object, called the parent object.
+但是，单个交易不能使用多个地址拥有的对象。一个对象（称为子对象）的所有者可以设置为另一个对象（称为父对象）的 ObjID。
+In that case the child object may only be used if the parent object is included in the transaction, and the transaction is authorized to use the object. This facility may be used by contracts to construct efficient collections and other complex data structures.
+在那种情况下，仅当父对象包含在交易中并且交易被授权使用该对象时，才可以使用子对象。合同可以使用此功能来构建高效的集合和其他复杂的数据结构。
+
+Shared objects are mutable, but do not have a specific owner. They can instead be included in transactions by different parties, and do not require any authorization. Instead they perform their own authorization logic. Such objects, by virtue of having to support multiple writers while ensuring safety and liveness, do require a full agreement protocol to be used safely. Therefore they require additional logic before execution.
+共享对象是可变的，但没有特定的所有者。相反，它们可以包含在不同方的交易中，并且不需要任何授权。相反，他们执行自己的授权逻辑。由于必须在确保安全性和活跃性的同时支持多个编写器，因此此类对象确实需要完整的协议协议才能安全使用。因此，它们在执行前需要额外的逻辑。
+Authorities process transactions as specified in Sect. 4.3 for owned objects and read-only objects to manage their locks. However, authorities do not rely on consistent broadcast to manage the locks of shared objects. Instead, the creators of transactions that involve shared objects insert the certificate on the transaction into a high-throughput consensus system, e.g. [9].
+权威机构按照 4.3节 中的规定处理交易。为自有对象和只读对象管理它们的锁。但是，权威机构不依赖一致的广播来管理共享对象的锁。相反，涉及共享对象的交易的创建者将交易证书插入高吞吐量共识系统，例如[9].
+All authorities observe a consistent sequence of such certificates, and assign the version of shared objects used by each transaction according to this sequence. Then execution can proceed and is guaranteed to be consistent across all authorities. Authorities include the version of shared objects used in a transaction execution within the Effects certificate.
+所有权威机构都遵守此类证书的一致顺序，并根据此顺序分配每个交易使用的共享对象的版本。然后执行可以继续，并保证在所有当局之间保持一致。授权包括在 Effects 证书中的交易执行中使用的共享对象的版本。
+
+
+
+
+
+
+
 
 
 
